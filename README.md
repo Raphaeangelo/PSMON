@@ -4,8 +4,6 @@ Only tested on:
 
 Mac OS X
 
-Debian 8
-
 
 PSMON is a bash script that lists your running processes, produces a hash value of those processes, compares your running processes hashes to known bad hashes (using cymru malware database project "netcat hash.cymru.com < HASHES.txt > HASHESRESPONSE.txt" explained here https://www.team-cymru.com/mhr.html). 
 
