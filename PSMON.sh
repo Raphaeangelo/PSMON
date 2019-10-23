@@ -64,7 +64,7 @@ if [ -f known_good_hashes.txt ]; then
 fi
 
 #########################################################################              
-# Compare running_process_hash_only.txt to known_bad_hashes.txt		#
+# Compare running_process_hash_only.txt to hash.cymru.com		#
 #########################################################################
 
 if [ -f running_process_hash_only.txt ] && [ -s running_process_hash_only.txt ]; then
