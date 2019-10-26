@@ -25,25 +25,23 @@ By: Raphaeangelo
 EOF
 
 echo "======================================================================="
-echo -ne 'Scanning running processes                 [#####               ] (25%)\r'
+echo -ne 'Creating list of all running processes    [#####               ] (25%)\n'
 
 ###########################################################################
 # Create list of all running processes and remove lines that do not begin #
 # with "/" because those aren't directories                               #
 ###########################################################################
 
-ps -ewwo comm > running_processes_file_location_raw.txt
-sed '/^[^/]/d' running_processes_file_location_raw.txt > running_processes_file_location.txt
-rm -f running_processes_file_location_raw.txt
+ps -ewwo comm > running_processes_file_location_raw.txt && sed '/^[^/]/d' running_processes_file_location_raw.txt > running_processes_file_location.txt && rm -f running_processes_file_location_raw.txt
 
 ##############################################
 # Create md5 hashes of all running processes #
 ##############################################
 
+echo -ne 'Creating hash for all running processes   [##########          ] (50%)\n'
 while read -r list; do
 	openssl md5 "$list" >> md5_hashes_of_running_processes_file_location.txt 2> /dev/null
 done < running_processes_file_location.txt
-echo -ne 'Scanning running processes                 [##########          ] (50%)\r'
 
 ################################
 # Trim hashlist to only hashes #
@@ -67,14 +65,13 @@ fi
 # Compare running_process_hash_only.txt to hash.cymru.com		#
 #########################################################################
 
+echo -ne 'Checking hashes in Cymru Malware Database [###############     ] (75%)\n'
 if [ -f running_process_hash_only.txt ] && [ -s running_process_hash_only.txt ]; then
 
 	nc hash.cymru.com 43 < running_process_hash_only.txt > list.txt
 	sed -i "" "/NO_DATA/d" list.txt 2> /dev/null
 	cat list.txt | cut -d" " -f 1 > bad_running_process_hashes.txt
 fi
-
-echo -ne 'Scanning running processes                 [###############     ] (75%)\r'
 
 ########################################################              
 # If a "bad" running hash is detected kill the process #
@@ -90,7 +87,7 @@ if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt 
 		cat md5_hashes_of_running_processes_file_location.txt | grep "$list" | cut -d"(" -f 2 | cut -d")" -f 1 >> bad_process_locations.txt 2> /dev/null
 	done < bad_running_process_hashes.txt
 
-	echo 'Scanning running processes                [####################] (100%)'
+	echo 'Scan complete                             [####################] (100%)'
 	echo "======================================================================="
 
 	while read -r list; do
@@ -101,11 +98,11 @@ if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt 
 		echo "Process name:\"$BADPNAME\""
 		echo "Location:\"$list\""
 		echo "======================================================================="
-		killty="$(osascript -e 'display dialog "Malicious process detected!\n\nProcess name: \"'"${BADPNAME//\"/}"'\"\n\nLocation: \"'"${list//\"/}"'\"" with title "Malicious process detected!" with icon file "System:Library:CoreServices:CoreTypes.bundle:Contents:Resources:AlertStopIcon.icns" buttons {"Allow process for 15 minutes", "Allow process forever", "Kill process"} giving up after 300 default button "Kill process"')"
+		killty="$(osascript -e 'display dialog "Malicious process detected!\n\nProcess name: \"'"${BADPNAME//\"/}"'\"\n\nLocation: \"'"${list//\"/}"'\"" with title "Malicious process detected!" with icon file "System:Library:CoreServices:CoreTypes.bundle:Contents:Resources:AlertStopIcon.icns" buttons {"Allow process for 5 minutes", "Allow process forever", "Kill process"} giving up after 300 default button "Kill process"')"
 		if [ "$killty" = "button returned:, gave up:true" ]; then
 			:
 		fi
-		if [ "$killty" = "button returned:Allow process for 15 minutes, gave up:false" ]; then
+		if [ "$killty" = "button returned:Allow process for 5 minutes, gave up:false" ]; then
 			:
 		fi
 		if [ "$killty" = "button returned:Allow process forever, gave up:false" ]; then
@@ -137,12 +134,13 @@ else
 		echo "$list" >> known_good_hashes.txt 2> /dev/null
 	done < running_process_hash_only.txt
 
-	echo 'Scanning running processes                [####################] (100%)'
+	echo 'Scan complete                             [####################] (100%)'
 	echo "======================================================================="
 	echo "No malicious processes detected. Your system is clean."
 	echo "======================================================================="
 	
 fi
+
 ############
 # Clean-up #
 ############
@@ -154,7 +152,7 @@ rm -f md5_hashes_of_running_processes_file_location.txt
 rm -f running_processes_file_location.txt
 rm -f running_process_hash_only.txt
 
-echo "Scan complete. New scan will start in 5 minutes"
+echo "New scan will start in 5 minutes"
 echo "======================================================================="
 sleep 300
 done
