@@ -32,7 +32,7 @@ echo -ne 'Creating list of all running processes    [#####               ] (25%)
 # with "/" because those aren't directories                               #
 ###########################################################################
 
-ps -ewwo comm > running_processes_file_location_raw.txt && sed '/^[^/]/d' running_processes_file_location_raw.txt > running_processes_file_location.txt && rm -f running_processes_file_location_raw.txt
+ps -ewwo comm | sort -u > running_processes_file_location_raw.txt && sed '/^[^/]/d' running_processes_file_location_raw.txt > running_processes_file_location.txt && rm -f running_processes_file_location_raw.txt
 
 ##############################################
 # Create md5 hashes of all running processes #
