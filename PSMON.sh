@@ -4,11 +4,14 @@
 # Clean-up if any old files exist #
 ###################################
 
-rm -f list.txt
-rm -f new_process_locations.txt
-rm -f md5_hashes_of_running_processes_file_location.txt
-rm -f new_md5_hashes_of_running_processes_file_location.txt
+rm -f running_processes_file_location_raw.txt
 rm -f running_processes_file_location.txt
+rm -f md5_hashes_of_running_processes_file_location.txt
+rm -f running_process_hash_only.txt
+rm -f running_process_hash_only_diff.txt
+rm -f bad_running_process_hashes.txt
+rm -f bad_process_locations.txt
+rm -f list.txt
 
 while :
 do
@@ -32,7 +35,7 @@ echo -ne 'Creating list of all running processes    [#####               ] (25%)
 # with "/" because those aren't directories                               #
 ###########################################################################
 
-ps -ewwo comm | sort -u > running_processes_file_location_raw.txt && sed '/^[^/]/d' running_processes_file_location_raw.txt > running_processes_file_location.txt && rm -f running_processes_file_location_raw.txt
+ps -ewwo comm | sort -u > running_processes_file_location_raw.txt && sed '/^[^/]/d' running_processes_file_location_raw.txt > running_processes_file_location.txt
 
 ##############################################
 # Create md5 hashes of all running processes #
@@ -40,14 +43,14 @@ ps -ewwo comm | sort -u > running_processes_file_location_raw.txt && sed '/^[^/]
 
 echo -ne 'Creating hash for all running processes   [##########          ] (50%)\n'
 while read -r list; do
-	openssl md5 "$list" >> md5_hashes_of_running_processes_file_location.txt 2> /dev/null
+	md5 "$list" >> md5_hashes_of_running_processes_file_location.txt 2> /dev/null
 done < running_processes_file_location.txt
 
 ################################
 # Trim hashlist to only hashes #
 ################################
 
-cat md5_hashes_of_running_processes_file_location.txt | cut -d"=" -f2 | cut -d" " -f2 > running_process_hash_only.txt
+cat md5_hashes_of_running_processes_file_location.txt | cut -d"=" -f2 | cut -d" " -f2  > running_process_hash_only.txt
 
 ###########################################################################              
 # Compare running_process_hash_only.txt against known_good_hases.txt if   #
@@ -55,22 +58,21 @@ cat md5_hashes_of_running_processes_file_location.txt | cut -d"=" -f2 | cut -d" 
 # hashes are already good and doesn't need to be scanned again 		  #
 ###########################################################################
 
-if [ -f known_good_hashes.txt ]; then
-	while read -r list; do
-		sed -i "" "/$list/d" running_process_hash_only.txt 2> /dev/null
-	done < known_good_hashes.txt
+if [ -f known_good_hashes.txt ] && [ -s known_good_hashes.txt ]; then
+	grep -v -f known_good_hashes.txt running_process_hash_only.txt > running_process_hash_only_diff.txt
+else
+	mv running_process_hash_only.txt running_process_hash_only_diff.txt
 fi
 
 #########################################################################              
-# Compare running_process_hash_only.txt to hash.cymru.com		#
+# Compare running_process_hash_only_diff.txt to hash.cymru.com		#
 #########################################################################
 
 echo -ne 'Checking hashes in Cymru Malware Database [###############     ] (75%)\n'
-if [ -f running_process_hash_only.txt ] && [ -s running_process_hash_only.txt ]; then
-
-	nc hash.cymru.com 43 < running_process_hash_only.txt > list.txt
+if [ -f running_process_hash_only_diff.txt ] && [ -s running_process_hash_only_diff.txt ]; then
+	nc hash.cymru.com 43 < running_process_hash_only_diff.txt > list.txt
 	sed -i "" "/NO_DATA/d" list.txt 2> /dev/null
-	cat list.txt | cut -d" " -f 1 > bad_running_process_hashes.txt
+	cut -d" " -f1 list.txt > bad_running_process_hashes.txt
 fi
 
 ########################################################              
@@ -86,6 +88,7 @@ if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt 
 	while read -r list; do
 		cat md5_hashes_of_running_processes_file_location.txt | grep "$list" | cut -d"(" -f 2 | cut -d")" -f 1 >> bad_process_locations.txt 2> /dev/null
 	done < bad_running_process_hashes.txt
+	
 
 	echo 'Scan complete                             [####################] (100%)'
 	echo "======================================================================="
@@ -106,7 +109,7 @@ if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt 
 			:
 		fi
 		if [ "$killty" = "button returned:Allow process forever, gave up:false" ]; then
-			grep "$list" md5_hashes_of_running_processes_file_location.txt | cut -d"=" -f2 | cut -d" " -f2 >> known_good_hashes.txt 2> /dev/null
+			grep "$list" md5_hashes_of_running_processes_file_location.txt | cut -d"=" -f2 | cut -d" " -f2 >> known_good_hashes.txt
 		fi
 		if [ "$killty" = "button returned:Kill process, gave up:false" ]; then
 			kill -9 $BADPID 2> /dev/null
@@ -118,12 +121,12 @@ if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt 
 	##########################################################################################
 
 	while read -r list; do
-		sed -i "" "/$list/d" running_process_hash_only.txt 2> /dev/null
+		sed -i "" "/$list/d" running_process_hash_only_diff.txt 2> /dev/null
 	done < bad_running_process_hashes.txt
 	
 	while read -r list; do
 		echo "$list" >> known_good_hashes.txt 2> /dev/null
-	done < running_process_hash_only.txt
+	done < running_process_hash_only_diff.txt
 
 else
 	##########################################################              
@@ -132,7 +135,7 @@ else
 
 	while read -r list; do
 		echo "$list" >> known_good_hashes.txt 2> /dev/null
-	done < running_process_hash_only.txt
+	done < running_process_hash_only_diff.txt
 
 	echo 'Scan complete                             [####################] (100%)'
 	echo "======================================================================="
@@ -145,12 +148,14 @@ fi
 # Clean-up #
 ############
 
-rm -f list.txt
-rm -f bad_process_locations.txt
-rm -f bad_running_process_hashes.txt
-rm -f md5_hashes_of_running_processes_file_location.txt
+rm -f running_processes_file_location_raw.txt
 rm -f running_processes_file_location.txt
+rm -f md5_hashes_of_running_processes_file_location.txt
 rm -f running_process_hash_only.txt
+rm -f running_process_hash_only_diff.txt
+rm -f bad_running_process_hashes.txt
+rm -f bad_process_locations.txt
+rm -f list.txt
 
 echo "New scan will start in 5 minutes"
 echo "======================================================================="
