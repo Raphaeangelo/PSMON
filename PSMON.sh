@@ -28,7 +28,7 @@ By: Raphaeangelo
 EOF
 
 echo "======================================================================="
-echo -ne 'Creating list of all running processes    [#####               ] (25%)\n'
+echo -ne 'Creating list of all running processes    [                    ] (0%)\r'
 
 ###########################################################################
 # Create list of all running processes and remove lines that do not begin #
@@ -36,15 +36,17 @@ echo -ne 'Creating list of all running processes    [#####               ] (25%)
 ###########################################################################
 
 ps -ewwo comm | sort -u > running_processes_file_location_raw.txt && sed '/^[^/]/d' running_processes_file_location_raw.txt > running_processes_file_location.txt
+echo -ne 'Creating list of all running processes    [####################] (100%)\n'
 
 ##############################################
 # Create md5 hashes of all running processes #
 ##############################################
 
-echo -ne 'Creating hash for all running processes   [##########          ] (50%)\n'
+echo -ne 'Creating hash for all running processes   [                    ] (0%)\r'
 while read -r list; do
 	md5 "$list" >> md5_hashes_of_running_processes_file_location.txt 2> /dev/null
 done < running_processes_file_location.txt
+echo -ne 'Creating hash for all running processes   [####################] (100%)\n'
 
 ################################
 # Trim hashlist to only hashes #
@@ -68,12 +70,13 @@ fi
 # Compare running_process_hash_only_diff.txt to hash.cymru.com		#
 #########################################################################
 
-echo -ne 'Checking hashes in Cymru Malware Database [###############     ] (75%)\n'
+echo -ne 'Checking hashes in Cymru Malware Database [                    ] (0%)\r'
 if [ -f running_process_hash_only_diff.txt ] && [ -s running_process_hash_only_diff.txt ]; then
 	nc hash.cymru.com 43 < running_process_hash_only_diff.txt > list.txt
 	sed -i "" "/NO_DATA/d" list.txt 2> /dev/null
 	cut -d" " -f1 list.txt > bad_running_process_hashes.txt
 fi
+echo -ne 'Checking hashes in Cymru Malware Database [####################] (100%)\n'
 
 ########################################################              
 # If a "bad" running hash is detected kill the process #
@@ -88,10 +91,6 @@ if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt 
 	while read -r list; do
 		cat md5_hashes_of_running_processes_file_location.txt | grep "$list" | cut -d"(" -f 2 | cut -d")" -f 1 >> bad_process_locations.txt 2> /dev/null
 	done < bad_running_process_hashes.txt
-	
-
-	echo 'Scan complete                             [####################] (100%)'
-	echo "======================================================================="
 
 	while read -r list; do
 		BADPID=$(ps -ef | grep "$list" | awk '{print $2}')
@@ -128,6 +127,9 @@ if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt 
 		echo "$list" >> known_good_hashes.txt 2> /dev/null
 	done < running_process_hash_only_diff.txt
 
+	echo -ne 'Scan complete                             [####################] (100%)\n'
+	echo "======================================================================="
+
 else
 	##########################################################              
 	# Add "good" running hashes to the known_good_hashes.txt #
@@ -137,7 +139,7 @@ else
 		echo "$list" >> known_good_hashes.txt 2> /dev/null
 	done < running_process_hash_only_diff.txt
 
-	echo 'Scan complete                             [####################] (100%)'
+	echo -ne 'Scan complete                             [####################] (100%)\n'
 	echo "======================================================================="
 	echo "No malicious processes detected. Your system is clean."
 	echo "======================================================================="
