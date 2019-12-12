@@ -78,16 +78,18 @@ if [ -f running_process_hash_only_diff.txt ] && [ -s running_process_hash_only_d
 fi
 echo -ne 'Checking hashes in Cymru Malware Database [####################] (100%)\n'
 
+
 ########################################################              
 # If a "bad" running hash is detected kill the process #
 ########################################################
 
 if [ -f bad_running_process_hashes.txt ] && [ -s bad_running_process_hashes.txt ]; then
-		
+	
 	################################################################
 	# Kill bad processes or alert that no bad process was detected #
 	################################################################
 
+	echo "======================================================================="
 	while read -r list; do
 		cat md5_hashes_of_running_processes_file_location.txt | grep "$list" | cut -d"(" -f 2 | cut -d")" -f 1 >> bad_process_locations.txt 2> /dev/null
 	done < bad_running_process_hashes.txt
